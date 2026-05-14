@@ -3,86 +3,91 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Forum — A Place For Discourse</title>
+  <title>KillVolute</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-
-  <!-- Masthead -->
   <header class="masthead">
     <div class="masthead-inner">
-      <div class="masthead-meta left">
-        <span id="today-date">—</span>
-      </div>
-      <h1 class="masthead-title">The Forum</h1>
-      <div class="masthead-meta right">
+      <a href="#" data-route="home" class="brand nav-link">
+        <span class="brand-mark">KV</span>
+        <span>KillVolute</span>
+      </a>
+      <nav class="mainnav" aria-label="Main navigation">
+        <a href="#" data-route="home" class="nav-link active">Home</a>
+        <a href="#" data-route="discussions" class="nav-link">Discussions</a>
+        <a href="#" data-route="announcements" class="nav-link">Announcements</a>
+        <a href="#" data-route="leaderboard" class="nav-link">Leaderboard</a>
+      </nav>
+      <div class="account">
         <span id="user-badge">Guest</span>
-        <button id="login-btn" class="link-btn">Sign in</button>
+        <button id="login-btn" class="ghost-btn">Sign in</button>
       </div>
     </div>
-    <div class="masthead-tagline">— A Place For Discourse —</div>
   </header>
 
-  <!-- Navigation -->
-  <nav class="mainnav">
-    <ul>
-      <li><a href="#" data-route="home" class="nav-link active">Home</a></li>
-      <li><a href="#" data-route="discussions" class="nav-link">Discussions</a></li>
-      <li><a href="#" data-route="announcements" class="nav-link">Announcements</a></li>
-      <li><a href="#" data-route="leaderboard" class="nav-link">Leaderboard</a></li>
-      <li><a href="#" data-route="shame" class="nav-link">Hall of Shame</a></li>
-    </ul>
-  </nav>
-
-  <!-- Views -->
   <main id="app">
-
-    <!-- HOME -->
     <section class="view view-home" data-view="home">
-      <div class="grid-3">
-        <article class="col lead">
-          <span class="kicker">Featured</span>
-          <h2 class="headline" id="lead-title">—</h2>
-          <p class="byline" id="lead-byline">—</p>
-          <p class="lede" id="lead-excerpt">—</p>
-          <button class="cta" id="lead-cta">Read discussion →</button>
+      <section class="hero">
+        <div>
+          <p class="eyebrow" id="today-date">Today</p>
+          <h1>KillVolute</h1>
+          <p class="hero-copy">A clean forum shell ready for your own community, topics, and announcements.</p>
+        </div>
+        <div class="hero-actions">
+          <button class="cta" id="hero-new-thread">Start first thread</button>
+          <button class="soft-btn" data-route="discussions">Browse discussions</button>
+        </div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel lead">
+          <div class="panel-head">
+            <span class="kicker">Featured</span>
+          </div>
+          <h2 class="headline" id="lead-title">No featured thread yet</h2>
+          <p class="byline" id="lead-byline">Create the first discussion to feature it here.</p>
+          <p class="lede" id="lead-excerpt">KillVolute is empty by design now. Sign in, post a thread, and the homepage will start filling itself from real activity.</p>
+          <button class="cta" id="lead-cta">New thread</button>
         </article>
 
-        <aside class="col announcements-col">
-          <h3 class="col-title">Announcements</h3>
+        <aside class="panel">
+          <div class="panel-head">
+            <h3 class="col-title">Announcements</h3>
+          </div>
           <ul id="home-announcements" class="ann-list"></ul>
         </aside>
 
-        <aside class="col rank-col">
-          <h3 class="col-title">Top Contributors</h3>
+        <aside class="panel">
+          <div class="panel-head">
+            <h3 class="col-title">Top Contributors</h3>
+          </div>
           <ol id="home-leaderboard" class="rank-list"></ol>
-          <h3 class="col-title spaced">Hall of Shame</h3>
-          <ol id="home-shame" class="rank-list rank-shame"></ol>
         </aside>
-      </div>
-
-      <hr class="rule" />
+      </section>
 
       <section class="recent-block">
         <div class="recent-head">
           <h3 class="section-title">Recent Discussions</h3>
-          <a href="#" data-route="discussions" class="nav-link see-all">See all →</a>
+          <button class="soft-btn" data-route="discussions">See all</button>
         </div>
         <div id="home-recent" class="recent-list"></div>
       </section>
     </section>
 
-    <!-- DISCUSSIONS -->
     <section class="view" data-view="discussions" hidden>
       <div class="view-head">
-        <h2 class="page-title">Discussions</h2>
-        <button class="cta" id="new-thread-btn">+ New thread</button>
+        <div>
+          <p class="eyebrow">Threads</p>
+          <h2 class="page-title">Discussions</h2>
+        </div>
+        <button class="cta" id="new-thread-btn">New thread</button>
       </div>
       <div class="filter-bar">
-        <input type="search" id="search-input" placeholder="Search threads…" />
+        <input type="search" id="search-input" placeholder="Search threads..." />
         <select id="sort-select">
           <option value="recent">Most recent</option>
           <option value="top">Most upvoted</option>
@@ -92,66 +97,54 @@
       <div id="thread-list" class="thread-list"></div>
     </section>
 
-    <!-- SINGLE THREAD -->
     <section class="view" data-view="thread" hidden>
-      <button class="back-btn" data-route="discussions">← Back to discussions</button>
+      <button class="back-btn" data-route="discussions">Back to discussions</button>
       <article id="thread-detail"></article>
       <section class="replies-block">
         <h3 class="section-title">Replies</h3>
         <div id="replies-list"></div>
         <div class="reply-form">
-          <textarea id="reply-input" placeholder="Write a reply…"></textarea>
+          <textarea id="reply-input" placeholder="Write a reply..."></textarea>
           <button class="cta" id="reply-submit">Post reply</button>
         </div>
       </section>
     </section>
 
-    <!-- ANNOUNCEMENTS -->
     <section class="view" data-view="announcements" hidden>
       <div class="view-head">
-        <h2 class="page-title">Announcements</h2>
-        <button class="cta" id="new-ann-btn">+ Post announcement</button>
+        <div>
+          <p class="eyebrow">Updates</p>
+          <h2 class="page-title">Announcements</h2>
+        </div>
+        <button class="cta" id="new-ann-btn">Post announcement</button>
       </div>
       <div id="ann-list" class="ann-full-list"></div>
     </section>
 
-    <!-- LEADERBOARD -->
     <section class="view" data-view="leaderboard" hidden>
       <div class="view-head">
-        <h2 class="page-title">Leaderboard</h2>
+        <div>
+          <p class="eyebrow">Reputation</p>
+          <h2 class="page-title">Leaderboard</h2>
+        </div>
       </div>
-      <p class="page-desc">Ranked by accumulated reputation — points earned from upvotes on threads and replies.</p>
+      <p class="page-desc">Ranked by accumulated reputation from upvotes on threads and replies.</p>
       <table class="rank-table" id="leaderboard-table"></table>
     </section>
-
-    <!-- HALL OF SHAME -->
-    <section class="view" data-view="shame" hidden>
-      <div class="view-head">
-        <h2 class="page-title">Hall of Shame</h2>
-      </div>
-      <p class="page-desc">Those whose contributions have been most poorly received. Ranked by net negative reputation.</p>
-      <table class="rank-table rank-table-shame" id="shame-table"></table>
-    </section>
-
   </main>
 
-  <!-- Footer -->
   <footer class="footer">
     <div class="footer-inner">
-      <span>© <span id="year">2026</span> The Forum</span>
-      <span class="footer-sep">·</span>
-      <span>Established for discourse</span>
-      <span class="footer-sep">·</span>
-      <button id="reset-data" class="link-btn small">Reset local data</button>
+      <span>Copyright <span id="year">2026</span> KillVolute</span>
+      <button id="reset-data" class="ghost-btn small">Reset local data</button>
     </div>
   </footer>
 
-  <!-- Modal -->
   <div id="modal" class="modal" hidden>
-    <div class="modal-card">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-head">
         <h3 id="modal-title">Modal</h3>
-        <button class="link-btn modal-close">✕</button>
+        <button class="icon-btn modal-close" aria-label="Close modal">x</button>
       </div>
       <div id="modal-body" class="modal-body"></div>
     </div>
