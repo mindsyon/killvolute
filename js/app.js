@@ -1,11 +1,18 @@
 /* =========================================================
-   app.js - router, renderers, interactions
+   app.js - lightweight Discourse-style forum behavior
    ========================================================= */
 
 let state = loadState();
 
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+const CATEGORY_META = {
+  Announcements: { color: '#d83b53', description: 'Official notices and staff updates.' },
+  Suggestions: { color: '#3484f0', description: 'Ideas, feedback, and community proposals.' },
+  General: { color: '#8d5cf6', description: 'Open conversation for everything else.' },
+  'Bug Reports': { color: '#18a46f', description: 'Issues, defects, and broken behavior.' },
+};
 
 function escapeHTML(s) {
   if (s == null) return '';
@@ -21,37 +28,105 @@ function timeAgo(ts) {
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
   if (m < 1) return 'just now';
-  if (m < 60) return m + 'm ago';
+  if (m < 60) return m + 'm';
   const h = Math.floor(m / 60);
-  if (h < 24) return h + 'h ago';
+  if (h < 24) return h + 'h';
   const d = Math.floor(h / 24);
-  if (d < 30) return d + 'd ago';
-  return Math.floor(d / 30) + 'mo ago';
+  if (d < 30) return d + 'd';
+  return Math.floor(d / 30) + 'mo';
 }
 
 function fmtDate(ts) {
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function fmtToday() {
-  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+function metaForCategory(name) {
+  return CATEGORY_META[name] || CATEGORY_META.General;
 }
 
-function emptyState(title, body, actionText, action) {
+function normalizeCategory(value) {
+  const clean = (value || '').trim();
+  return clean || 'General';
+}
+
+function replyCount(threadId) {
+  return state.replies.filter(r => r.threadId === threadId).length;
+}
+
+function fakeViews(item) {
+  const seed = String(item.id || item.title || '').split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return Math.max(24, seed + Math.abs(item.votes || 0) * 17);
+}
+
+function avatarInitial(user) {
+  return (user?.name || '?').slice(0, 1).toUpperCase();
+}
+
+function emptyTopicTable(title, body, actionText) {
   return `
+    <div class="topic-table-head">
+      <span>Topic</span>
+      <span>Replies</span>
+      <span>Views</span>
+      <span>Activity</span>
+    </div>
     <div class="empty-state">
-      <div class="empty-icon">KV</div>
+      <span class="empty-mark">K</span>
       <h3>${escapeHTML(title)}</h3>
       <p>${escapeHTML(body)}</p>
-      ${actionText ? `<button class="cta empty-action">${escapeHTML(actionText)}</button>` : ''}
+      ${actionText ? `<button class="primary-btn empty-action">${escapeHTML(actionText)}</button>` : ''}
     </div>
+  `;
+}
+
+function topicTable(items, emptyTitle, emptyBody, actionText) {
+  if (!items.length) return emptyTopicTable(emptyTitle, emptyBody, actionText);
+
+  return `
+    <div class="topic-table-head">
+      <span>Topic</span>
+      <span>Replies</span>
+      <span>Views</span>
+      <span>Activity</span>
+    </div>
+    ${items.map(item => {
+      const isAnnouncement = item.kind === 'announcement';
+      const author = isAnnouncement ? { name: 'staff' } : userById(state, item.authorId);
+      const category = isAnnouncement ? 'Announcements' : normalizeCategory(item.tag);
+      const cat = metaForCategory(category);
+      const replies = isAnnouncement ? 0 : replyCount(item.id);
+      const views = fakeViews(item);
+      return `
+        <article class="topic-row" data-thread="${isAnnouncement ? '' : item.id}" data-kind="${isAnnouncement ? 'announcement' : 'thread'}">
+          <div class="topic-main">
+            <h3>${escapeHTML(item.title)}</h3>
+            <div class="topic-meta">
+              <span class="category-badge" style="--cat:${cat.color}">${escapeHTML(category)}</span>
+              <span>${escapeHTML(cat.description)}</span>
+            </div>
+          </div>
+          <div class="posters">
+            <span class="avatar">${escapeHTML(avatarInitial(author))}</span>
+          </div>
+          <strong class="topic-stat">${replies}</strong>
+          <strong class="topic-stat">${views}</strong>
+          <time class="activity">${timeAgo(item.createdAt)}</time>
+        </article>
+      `;
+    }).join('')}
   `;
 }
 
 let currentRoute = 'home';
 let currentThreadId = null;
 
+function normalizeRoute(route) {
+  if (route === 'discussions') return 'latest';
+  return route || 'home';
+}
+
 function go(route, opts={}) {
+  route = normalizeRoute(route);
   currentRoute = route;
   if (opts.threadId) currentThreadId = opts.threadId;
 
@@ -59,14 +134,16 @@ function go(route, opts={}) {
   $$('.nav-link').forEach(a => {
     a.classList.toggle('active', a.dataset.route === route);
   });
-
   window.scrollTo({ top: 0, behavior: 'instant' });
 
   if (route === 'home') renderHome();
-  else if (route === 'discussions') renderDiscussions();
+  else if (route === 'latest') renderDiscussions();
   else if (route === 'thread') renderThread();
   else if (route === 'announcements') renderAnnouncements();
   else if (route === 'leaderboard') renderLeaderboard();
+  else if (route === 'filter') renderFilter();
+  else if (route === 'badges') renderBadges();
+  else if (route === 'about') renderAbout();
 }
 
 document.addEventListener('click', e => {
@@ -77,58 +154,34 @@ document.addEventListener('click', e => {
 });
 
 function renderHome() {
-  const lead = [...state.threads].sort((a,b) => b.votes - a.votes)[0];
-  const leadCta = $('#lead-cta');
+  const announcements = [...state.announcements]
+    .sort((a,b) => b.createdAt - a.createdAt)
+    .slice(0, 5)
+    .map(a => ({ ...a, kind: 'announcement' }));
+  const recent = [...state.threads].sort((a,b) => b.createdAt - a.createdAt).slice(0, 20);
 
-  if (lead) {
-    $('#lead-title').textContent = lead.title;
-    $('#lead-byline').textContent = `${userById(state, lead.authorId).name} - ${fmtDate(lead.createdAt)}`;
-    $('#lead-excerpt').textContent = lead.body.slice(0, 240) + (lead.body.length > 240 ? '...' : '');
-    leadCta.textContent = 'Read discussion';
-    leadCta.onclick = () => go('thread', { threadId: lead.id });
-  } else {
-    $('#lead-title').textContent = 'No featured thread yet';
-    $('#lead-byline').textContent = 'Create the first discussion to feature it here.';
-    $('#lead-excerpt').textContent = 'KillVolute is empty by design now. Sign in, post a thread, and the homepage will start filling itself from real activity.';
-    leadCta.textContent = 'New thread';
-    leadCta.onclick = openNewThreadModal;
-  }
+  $('#home-announcements').innerHTML = topicTable(
+    announcements,
+    'No announcements yet',
+    'Official updates will appear here once you post one.',
+    'New Announcement'
+  );
+  $('#home-recent').innerHTML = topicTable(
+    recent,
+    'No topics yet',
+    'KillVolute is empty. Start the first topic to bring the forum online.',
+    'New Topic'
+  );
 
-  const ann = [...state.announcements].sort((a,b) => b.createdAt - a.createdAt).slice(0, 4);
-  $('#home-announcements').innerHTML = ann.map(a => `
-    <li>
-      <span class="ann-date">${fmtDate(a.createdAt)}</span>
-      <span class="ann-title">${escapeHTML(a.title)}</span>
-    </li>
-  `).join('') || '<li class="muted-row">No announcements yet.</li>';
-
-  const rep = computeReputation(state);
-  const top = state.users
-    .map(u => ({ ...u, score: rep[u.id] || 0 }))
-    .filter(u => u.score > 0)
-    .sort((a,b) => b.score - a.score)
-    .slice(0, 5);
-
-  $('#home-leaderboard').innerHTML = top.map(u => `
-    <li><span class="rank-name">${escapeHTML(u.name)}</span><span class="rank-score">${u.score} pts</span></li>
-  `).join('') || '<li class="muted-row">No reputation yet.</li>';
-
-  const recent = [...state.threads].sort((a,b) => b.createdAt - a.createdAt).slice(0, 6);
-  $('#home-recent').innerHTML = recent.map(t => `
-    <div class="recent-item" data-thread="${t.id}">
-      <h4>${escapeHTML(t.title)}</h4>
-      <div class="meta">${escapeHTML(userById(state, t.authorId).name)} - ${timeAgo(t.createdAt)} - ${t.votes} pts</div>
-    </div>
-  `).join('') || emptyState('No discussions yet', 'Start the first thread and it will appear here.', 'Start first thread');
-
+  $('#home-announcements .empty-action')?.addEventListener('click', openNewAnnouncementModal);
   $('#home-recent .empty-action')?.addEventListener('click', openNewThreadModal);
-  $$('#home-recent .recent-item').forEach(el => {
-    el.onclick = () => go('thread', { threadId: el.dataset.thread });
-  });
+  wireTopicRows();
 }
 
 function renderDiscussions() {
-  const q = ($('#search-input').value || '').toLowerCase();
+  const globalQ = ($('#global-search')?.value || '').toLowerCase();
+  const localQ = ($('#search-input')?.value || '').toLowerCase();
+  const q = localQ || globalQ;
   const sort = $('#sort-select').value;
 
   let list = state.threads.slice();
@@ -136,70 +189,64 @@ function renderDiscussions() {
     list = list.filter(t =>
       t.title.toLowerCase().includes(q) ||
       t.body.toLowerCase().includes(q) ||
-      (t.tag || '').toLowerCase().includes(q)
+      normalizeCategory(t.tag).toLowerCase().includes(q)
     );
   }
 
   if (sort === 'recent') list.sort((a,b) => b.createdAt - a.createdAt);
-  else if (sort === 'top') list.sort((a,b) => b.votes - a.votes);
-  else if (sort === 'replies') {
-    const counts = {};
-    state.replies.forEach(r => { counts[r.threadId] = (counts[r.threadId] || 0) + 1; });
-    list.sort((a,b) => (counts[b.id] || 0) - (counts[a.id] || 0));
-  }
+  else if (sort === 'top') list.sort((a,b) => replyCount(b.id) - replyCount(a.id));
+  else if (sort === 'replies') list.sort((a,b) => fakeViews(b) - fakeViews(a));
 
-  const replyCounts = {};
-  state.replies.forEach(r => { replyCounts[r.threadId] = (replyCounts[r.threadId] || 0) + 1; });
-
-  $('#thread-list').innerHTML = list.map(t => `
-    <div class="thread-row" data-thread="${t.id}">
-      <div class="thread-votes">
-        <span class="num">${t.votes}</span>
-        <span class="lbl">votes</span>
-      </div>
-      <div class="thread-body">
-        <h3>${escapeHTML(t.title)}</h3>
-        <p class="excerpt">${escapeHTML(t.body)}</p>
-        <div class="thread-meta">
-          <span>${escapeHTML(userById(state, t.authorId).name)}</span>
-          <span>${timeAgo(t.createdAt)}</span>
-          <span>${replyCounts[t.id] || 0} replies</span>
-        </div>
-      </div>
-      <span class="thread-tag">${escapeHTML(t.tag || 'general')}</span>
-    </div>
-  `).join('') || emptyState('Nothing posted yet', 'KillVolute has no threads. Make the first one.', 'New thread');
+  $('#thread-list').innerHTML = topicTable(
+    list,
+    q ? 'No matching topics' : 'No topics yet',
+    q ? 'Try a different search or clear the filter.' : 'Make the first post and the topic list will fill from there.',
+    q ? '' : 'New Topic'
+  );
 
   $('#thread-list .empty-action')?.addEventListener('click', openNewThreadModal);
-  $$('.thread-row').forEach(row => {
+  wireTopicRows();
+}
+
+function wireTopicRows() {
+  $$('.topic-row[data-kind="thread"]').forEach(row => {
     row.onclick = () => go('thread', { threadId: row.dataset.thread });
   });
 }
 
-$('#search-input').addEventListener('input', () => { if (currentRoute === 'discussions') renderDiscussions(); });
-$('#sort-select').addEventListener('change', () => { if (currentRoute === 'discussions') renderDiscussions(); });
+$('#search-input').addEventListener('input', () => { if (currentRoute === 'latest') renderDiscussions(); });
+$('#sort-select').addEventListener('change', () => { if (currentRoute === 'latest') renderDiscussions(); });
+$('#global-search').addEventListener('input', () => {
+  if (currentRoute !== 'latest') go('latest');
+  else renderDiscussions();
+});
 
 function renderThread() {
   const t = state.threads.find(x => x.id === currentThreadId);
   if (!t) {
-    $('#thread-detail').innerHTML = emptyState('Thread not found', 'This thread may have been deleted or reset.', 'Back to discussions');
-    $('#thread-detail .empty-action')?.addEventListener('click', () => go('discussions'));
+    $('#thread-detail').innerHTML = '<div class="empty-state"><h3>Thread not found</h3><p>This topic may have been reset.</p></div>';
     $('#replies-list').innerHTML = '';
     return;
   }
 
   const author = userById(state, t.authorId);
   const userVote = state.currentUser ? (t.voters[state.currentUser.id] || 0) : 0;
+  const cat = metaForCategory(normalizeCategory(t.tag));
 
   $('#thread-detail').innerHTML = `
-    <span class="tag">${escapeHTML(t.tag || 'general')}</span>
-    <h2>${escapeHTML(t.title)}</h2>
-    <div class="meta">By ${escapeHTML(author.name)} - ${fmtDate(t.createdAt)} - ${timeAgo(t.createdAt)}</div>
-    <div class="body">${escapeHTML(t.body)}</div>
+    <div class="topic-open-head">
+      <span class="category-badge" style="--cat:${cat.color}">${escapeHTML(normalizeCategory(t.tag))}</span>
+      <h1>${escapeHTML(t.title)}</h1>
+      <p>By ${escapeHTML(author.name)} - ${fmtDate(t.createdAt)} - ${timeAgo(t.createdAt)} ago</p>
+    </div>
+    <div class="topic-post">
+      <span class="avatar large">${escapeHTML(avatarInitial(author))}</span>
+      <div class="topic-post-body">${escapeHTML(t.body)}</div>
+    </div>
     <div class="vote-bar">
-      <button class="vote-btn ${userVote === 1 ? 'active' : ''}" data-vote="up" data-target="thread" data-id="${t.id}">Upvote</button>
+      <button class="secondary-btn vote-btn ${userVote === 1 ? 'active' : ''}" data-vote="up" data-target="thread" data-id="${t.id}">Upvote</button>
       <span class="vote-score">${t.votes}</span>
-      <button class="vote-btn ${userVote === -1 ? 'active' : ''}" data-vote="down" data-target="thread" data-id="${t.id}">Downvote</button>
+      <button class="secondary-btn vote-btn ${userVote === -1 ? 'active' : ''}" data-vote="down" data-target="thread" data-id="${t.id}">Downvote</button>
     </div>
   `;
 
@@ -208,15 +255,18 @@ function renderThread() {
     const ra = userById(state, r.authorId);
     const rv = state.currentUser ? (r.voters[state.currentUser.id] || 0) : 0;
     return `
-      <div class="reply">
-        <div class="meta"><strong>${escapeHTML(ra.name)}</strong> - ${timeAgo(r.createdAt)}</div>
-        <div class="body">${escapeHTML(r.body)}</div>
-        <div class="vote-bar">
-          <button class="vote-btn ${rv === 1 ? 'active' : ''}" data-vote="up" data-target="reply" data-id="${r.id}">Up</button>
-          <span class="vote-score">${r.votes}</span>
-          <button class="vote-btn ${rv === -1 ? 'active' : ''}" data-vote="down" data-target="reply" data-id="${r.id}">Down</button>
+      <article class="reply">
+        <span class="avatar">${escapeHTML(avatarInitial(ra))}</span>
+        <div>
+          <div class="reply-meta"><strong>${escapeHTML(ra.name)}</strong> ${timeAgo(r.createdAt)} ago</div>
+          <div class="reply-body">${escapeHTML(r.body)}</div>
+          <div class="vote-bar small">
+            <button class="secondary-btn vote-btn ${rv === 1 ? 'active' : ''}" data-vote="up" data-target="reply" data-id="${r.id}">Up</button>
+            <span class="vote-score">${r.votes}</span>
+            <button class="secondary-btn vote-btn ${rv === -1 ? 'active' : ''}" data-vote="down" data-target="reply" data-id="${r.id}">Down</button>
+          </div>
         </div>
-      </div>
+      </article>
     `;
   }).join('') || '<p class="muted-text">No replies yet.</p>';
 
@@ -262,15 +312,13 @@ $('#reply-submit').addEventListener('click', () => {
 });
 
 function renderAnnouncements() {
-  const list = [...state.announcements].sort((a,b) => b.createdAt - a.createdAt);
-  $('#ann-list').innerHTML = list.map(a => `
-    <div class="ann-card">
-      <span class="ann-date">${fmtDate(a.createdAt)}</span>
-      <h3>${escapeHTML(a.title)}</h3>
-      <div class="ann-body">${escapeHTML(a.body)}</div>
-    </div>
-  `).join('') || emptyState('No announcements', 'Post an update when there is something worth pinning.', 'Post announcement');
-
+  const list = [...state.announcements].sort((a,b) => b.createdAt - a.createdAt).map(a => ({ ...a, kind: 'announcement' }));
+  $('#ann-list').innerHTML = topicTable(
+    list,
+    'No announcements yet',
+    'Create the first official post for KillVolute.',
+    'New Announcement'
+  );
   $('#ann-list .empty-action')?.addEventListener('click', openNewAnnouncementModal);
 }
 
@@ -286,21 +334,84 @@ function renderLeaderboard() {
     <tbody>
       ${rows.map((u, i) => `
         <tr>
-          <td class="rank-num">${i + 1}</td>
-          <td class="rank-name-cell">${escapeHTML(u.name)}</td>
-          <td class="rank-score-cell">${u.score}</td>
+          <td>${i + 1}</td>
+          <td>${escapeHTML(u.name)}</td>
+          <td>${u.score}</td>
         </tr>
       `).join('') || '<tr><td colspan="3" class="table-empty">No reputation yet.</td></tr>'}
     </tbody>
   `;
 }
 
+function renderFilter() {
+  const category = $('#category-filter').value;
+  const q = ($('#filter-search').value || '').toLowerCase();
+  const sort = $('#filter-sort').value;
+
+  let list = state.threads.slice();
+  if (category) list = list.filter(t => normalizeCategory(t.tag) === category);
+  if (q) {
+    list = list.filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      t.body.toLowerCase().includes(q) ||
+      normalizeCategory(t.tag).toLowerCase().includes(q)
+    );
+  }
+
+  if (sort === 'recent') list.sort((a,b) => b.createdAt - a.createdAt);
+  else if (sort === 'views') list.sort((a,b) => fakeViews(b) - fakeViews(a));
+  else if (sort === 'replies') list.sort((a,b) => replyCount(b.id) - replyCount(a.id));
+
+  $('#filter-results').innerHTML = topicTable(
+    list,
+    'No filtered topics',
+    'Change the filter or create a new topic in this category.',
+    'New Topic'
+  );
+  $('#filter-results .empty-action')?.addEventListener('click', openNewThreadModal);
+  wireTopicRows();
+}
+
+function renderBadges() {
+  const rep = computeReputation(state);
+  const topicCount = state.threads.length;
+  const replyTotal = state.replies.length;
+  const topScore = Math.max(0, ...Object.values(rep));
+  const badges = [
+    { name: 'First Signal', desc: 'Create the first topic.', earned: topicCount > 0 },
+    { name: 'Signal Boost', desc: 'Reach 10 total replies.', earned: replyTotal >= 10 },
+    { name: 'Crowd Pull', desc: 'Earn 25 reputation.', earned: topScore >= 25 },
+    { name: 'Archivist', desc: 'Post an announcement.', earned: state.announcements.length > 0 },
+    { name: 'Night Operator', desc: 'Keep the board active in dark mode.', earned: true },
+    { name: 'Bug Hunter', desc: 'Open a Bug Reports topic.', earned: state.threads.some(t => normalizeCategory(t.tag) === 'Bug Reports') },
+  ];
+
+  $('#badges-grid').innerHTML = badges.map(b => `
+    <article class="badge-card ${b.earned ? 'earned' : ''}">
+      <span class="badge-glyph">${b.earned ? 'KV' : '--'}</span>
+      <h2>${escapeHTML(b.name)}</h2>
+      <p>${escapeHTML(b.desc)}</p>
+      <strong>${b.earned ? 'Unlocked' : 'Locked'}</strong>
+    </article>
+  `).join('');
+}
+
+function renderAbout() {
+  $('#about-topic-count').textContent = state.threads.length;
+  $('#about-user-count').textContent = state.users.length;
+  $('#about-reply-count').textContent = state.replies.length;
+}
+
+function renderCurrentRoute() {
+  go(currentRoute, { threadId: currentThreadId });
+}
+
 function openLoginModal() {
-  openModal('Sign in', `
+  openModal('Log In', `
     <label for="login-name">Username</label>
-    <input id="login-name" placeholder="max" value="${state.currentUser ? escapeHTML(state.currentUser.name) : ''}" />
-    <p class="form-note">No password. Your account is stored locally in this browser.</p>
-    <button class="cta" id="login-go">Sign in</button>
+    <input id="login-name" placeholder="username" value="${state.currentUser ? escapeHTML(state.currentUser.name) : ''}" />
+    <p class="form-note">No password. This demo account is saved only in your browser.</p>
+    <button class="primary-btn" id="login-go">Log In</button>
   `);
   setTimeout(() => $('#login-name')?.focus(), 50);
   $('#login-go').onclick = () => {
@@ -322,10 +433,10 @@ function openLoginModal() {
 function refreshUserBadge() {
   if (state.currentUser) {
     $('#user-badge').textContent = state.currentUser.name;
-    $('#login-btn').textContent = 'Sign out';
+    $('#login-btn').textContent = 'Log Out';
   } else {
     $('#user-badge').textContent = 'Guest';
-    $('#login-btn').textContent = 'Sign in';
+    $('#login-btn').textContent = 'Log In';
   }
 }
 
@@ -342,18 +453,23 @@ $('#login-btn').addEventListener('click', () => {
 
 function openNewThreadModal() {
   if (!state.currentUser) { openLoginModal(); return; }
-  openModal('New thread', `
+  openModal('New Topic', `
     <label for="nt-title">Title</label>
-    <input id="nt-title" placeholder="What should people discuss?" />
-    <label for="nt-tag">Tag</label>
-    <input id="nt-tag" placeholder="General" />
+    <input id="nt-title" placeholder="Topic title" />
+    <label for="nt-tag">Category</label>
+    <select id="nt-tag">
+      <option>Suggestions</option>
+      <option>General</option>
+      <option>Bug Reports</option>
+      <option>Announcements</option>
+    </select>
     <label for="nt-body">Body</label>
     <textarea id="nt-body" placeholder="Write the opening post..."></textarea>
-    <button class="cta" id="nt-submit">Post thread</button>
+    <button class="primary-btn" id="nt-submit">Create Topic</button>
   `);
   $('#nt-submit').onclick = () => {
     const title = $('#nt-title').value.trim();
-    const tag = $('#nt-tag').value.trim() || 'General';
+    const tag = normalizeCategory($('#nt-tag').value);
     const body = $('#nt-body').value.trim();
     if (!title || !body) return;
     const t = {
@@ -375,12 +491,12 @@ function openNewThreadModal() {
 
 function openNewAnnouncementModal() {
   if (!state.currentUser) { openLoginModal(); return; }
-  openModal('Post announcement', `
+  openModal('New Announcement', `
     <label for="na-title">Title</label>
     <input id="na-title" placeholder="Announcement title" />
     <label for="na-body">Body</label>
     <textarea id="na-body" placeholder="Details..."></textarea>
-    <button class="cta" id="na-submit">Publish</button>
+    <button class="primary-btn" id="na-submit">Publish</button>
   `);
   $('#na-submit').onclick = () => {
     const title = $('#na-title').value.trim();
@@ -400,7 +516,11 @@ function openNewAnnouncementModal() {
 
 $('#new-thread-btn').addEventListener('click', openNewThreadModal);
 $('#hero-new-thread').addEventListener('click', openNewThreadModal);
+$('#filter-new-thread').addEventListener('click', openNewThreadModal);
 $('#new-ann-btn').addEventListener('click', openNewAnnouncementModal);
+$('#category-filter').addEventListener('change', () => { if (currentRoute === 'filter') renderFilter(); });
+$('#filter-search').addEventListener('input', () => { if (currentRoute === 'filter') renderFilter(); });
+$('#filter-sort').addEventListener('change', () => { if (currentRoute === 'filter') renderFilter(); });
 
 function openModal(title, bodyHTML) {
   $('#modal-title').textContent = title;
@@ -425,7 +545,30 @@ $('#reset-data').addEventListener('click', () => {
   go('home');
 });
 
-$('#today-date').textContent = fmtToday();
-$('#year').textContent = new Date().getFullYear();
+function routeFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const queryRoute = params.get('route');
+  if (queryRoute) return normalizeRoute(queryRoute);
+
+  const path = window.location.pathname.replace(/\/+$/, '').split('/').pop();
+  if (['latest', 'about', 'badges', 'filter'].includes(path)) return path;
+  return 'home';
+}
+
+function updateStorageStatus() {
+  const el = $('#storage-status');
+  if (!el) return;
+  el.textContent = SERVER_STORAGE_URL ? 'Server sync enabled' : 'Local storage';
+}
+
 refreshUserBadge();
-go('home');
+updateStorageStatus();
+go(routeFromLocation());
+
+syncStateFromServer().then(remoteState => {
+  if (!remoteState) return;
+  state = remoteState;
+  refreshUserBadge();
+  renderCurrentRoute();
+  updateStorageStatus();
+});

@@ -3,6 +3,7 @@
    ========================================================= */
 
 const STORAGE_KEY = 'killvolute.v1';
+const SERVER_STORAGE_URL = window.KILLVOLUTE_STORAGE_URL || '';
 
 const SEED_DATA = {
   currentUser: null,
@@ -35,10 +36,39 @@ function loadState() {
 
 function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  syncStateToServer(state);
 }
 
 function resetState() {
   localStorage.removeItem(STORAGE_KEY);
+  syncStateToServer(freshSeed());
+}
+
+async function syncStateFromServer() {
+  if (!SERVER_STORAGE_URL) return null;
+  try {
+    const res = await fetch(SERVER_STORAGE_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    const remoteState = await res.json();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteState));
+    return remoteState;
+  } catch (e) {
+    console.warn('Server sync load failed, using local data', e);
+    return null;
+  }
+}
+
+async function syncStateToServer(nextState) {
+  if (!SERVER_STORAGE_URL) return;
+  try {
+    await fetch(SERVER_STORAGE_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextState),
+    });
+  } catch (e) {
+    console.warn('Server sync save failed, keeping local data', e);
+  }
 }
 
 function userById(state, id) {

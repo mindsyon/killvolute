@@ -3,141 +3,221 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KillVolute</title>
+  <title>KillVolute Forums</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <header class="masthead">
-    <div class="masthead-inner">
-      <a href="#" data-route="home" class="brand nav-link">
-        <span class="brand-mark">KV</span>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="./" data-route="home" class="brand nav-link">
+        <span class="brand-logo">K</span>
         <span>KillVolute</span>
       </a>
-      <nav class="mainnav" aria-label="Main navigation">
-        <a href="#" data-route="home" class="nav-link active">Home</a>
-        <a href="#" data-route="discussions" class="nav-link">Discussions</a>
-        <a href="#" data-route="announcements" class="nav-link">Announcements</a>
-        <a href="#" data-route="leaderboard" class="nav-link">Leaderboard</a>
-      </nav>
+      <label class="search-wrap" for="global-search">
+        <span>Search</span>
+        <input id="global-search" type="search" placeholder="Search topics" />
+      </label>
       <div class="account">
         <span id="user-badge">Guest</span>
-        <button id="login-btn" class="ghost-btn">Sign in</button>
+        <button id="login-btn" class="primary-btn">Log In</button>
       </div>
     </div>
   </header>
 
-  <main id="app">
-    <section class="view view-home" data-view="home">
-      <section class="hero">
-        <div>
-          <p class="eyebrow" id="today-date">Today</p>
-          <h1>KillVolute</h1>
-          <p class="hero-copy">A clean forum shell ready for your own community, topics, and announcements.</p>
+  <div class="page-shell">
+    <aside class="sidebar" aria-label="KillVolute command deck">
+      <div class="sidebar-title">
+        <span>KillDeck</span>
+        <small>Forum control</small>
+      </div>
+      <nav class="side-section">
+        <a href="./" data-route="home" class="nav-link side-link active">Top</a>
+        <a href="latest/" data-route="latest" class="nav-link side-link">Latest</a>
+        <a href="filter/" data-route="filter" class="nav-link side-link">Filter</a>
+        <a href="badges/" data-route="badges" class="nav-link side-link">Badges</a>
+        <a href="about/" data-route="about" class="nav-link side-link">About</a>
+      </nav>
+      <div class="side-section">
+        <h2>Categories</h2>
+        <a href="#" data-route="announcements" class="side-link category-link" style="--cat:#d83b53">Announcements</a>
+        <a href="latest/" data-route="latest" class="side-link category-link" style="--cat:#3484f0">Suggestions</a>
+        <a href="latest/" data-route="latest" class="side-link category-link" style="--cat:#8d5cf6">General</a>
+        <a href="latest/" data-route="latest" class="side-link category-link" style="--cat:#18a46f">Bug Reports</a>
+      </div>
+      <div class="side-section">
+        <h2>Tags</h2>
+        <div class="tag-cloud">
+          <span>information</span>
+          <span>updates</span>
+          <span>feedback</span>
         </div>
-        <div class="hero-actions">
-          <button class="cta" id="hero-new-thread">Start first thread</button>
-          <button class="soft-btn" data-route="discussions">Browse discussions</button>
-        </div>
-      </section>
+      </div>
+    </aside>
 
-      <section class="dashboard-grid">
-        <article class="panel lead">
-          <div class="panel-head">
-            <span class="kicker">Featured</span>
+    <main id="app">
+      <section class="view view-home" data-view="home">
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">All top topics</p>
+            <h1>Command Feed</h1>
           </div>
-          <h2 class="headline" id="lead-title">No featured thread yet</h2>
-          <p class="byline" id="lead-byline">Create the first discussion to feature it here.</p>
-          <p class="lede" id="lead-excerpt">KillVolute is empty by design now. Sign in, post a thread, and the homepage will start filling itself from real activity.</p>
-          <button class="cta" id="lead-cta">New thread</button>
-        </article>
+          <button class="primary-btn" id="hero-new-thread">New Topic</button>
+        </div>
 
-        <aside class="panel">
-          <div class="panel-head">
-            <h3 class="col-title">Announcements</h3>
+        <div class="filter-strip">
+          <button class="filter-pill active">Categories</button>
+          <button class="filter-pill">Tags</button>
+          <button class="filter-pill">Unread</button>
+        </div>
+
+        <section class="forum-section">
+          <div class="section-head">
+            <h2>Announcements</h2>
+            <button class="text-btn" data-route="announcements">More</button>
           </div>
-          <ul id="home-announcements" class="ann-list"></ul>
-        </aside>
+          <div id="home-announcements" class="topic-table"></div>
+        </section>
 
-        <aside class="panel">
-          <div class="panel-head">
-            <h3 class="col-title">Top Contributors</h3>
+        <section class="forum-section">
+          <div class="section-head">
+            <h2>Latest</h2>
+            <button class="text-btn" data-route="latest">More</button>
           </div>
-          <ol id="home-leaderboard" class="rank-list"></ol>
-        </aside>
+          <div id="home-recent" class="topic-table"></div>
+        </section>
       </section>
 
-      <section class="recent-block">
-        <div class="recent-head">
-          <h3 class="section-title">Recent Discussions</h3>
-          <button class="soft-btn" data-route="discussions">See all</button>
+      <section class="view" data-view="latest" hidden>
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">Latest activity</p>
+            <h1>Latest Topics</h1>
+          </div>
+          <button class="primary-btn" id="new-thread-btn">New Topic</button>
         </div>
-        <div id="home-recent" class="recent-list"></div>
+        <div class="filter-bar">
+          <input type="search" id="search-input" placeholder="Filter topics" />
+          <select id="sort-select">
+            <option value="recent">Activity</option>
+            <option value="top">Replies</option>
+            <option value="replies">Views</option>
+          </select>
+        </div>
+        <div id="thread-list" class="topic-table"></div>
       </section>
-    </section>
 
-    <section class="view" data-view="discussions" hidden>
-      <div class="view-head">
-        <div>
-          <p class="eyebrow">Threads</p>
-          <h2 class="page-title">Discussions</h2>
+      <section class="view" data-view="filter" hidden>
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">Focused browsing</p>
+            <h1>Filter Topics</h1>
+          </div>
+          <button class="primary-btn" id="filter-new-thread">New Topic</button>
         </div>
-        <button class="cta" id="new-thread-btn">New thread</button>
-      </div>
-      <div class="filter-bar">
-        <input type="search" id="search-input" placeholder="Search threads..." />
-        <select id="sort-select">
-          <option value="recent">Most recent</option>
-          <option value="top">Most upvoted</option>
-          <option value="replies">Most replies</option>
-        </select>
-      </div>
-      <div id="thread-list" class="thread-list"></div>
-    </section>
-
-    <section class="view" data-view="thread" hidden>
-      <button class="back-btn" data-route="discussions">Back to discussions</button>
-      <article id="thread-detail"></article>
-      <section class="replies-block">
-        <h3 class="section-title">Replies</h3>
-        <div id="replies-list"></div>
-        <div class="reply-form">
-          <textarea id="reply-input" placeholder="Write a reply..."></textarea>
-          <button class="cta" id="reply-submit">Post reply</button>
+        <div class="filter-grid">
+          <label>
+            Category
+            <select id="category-filter">
+              <option value="">All categories</option>
+              <option>Announcements</option>
+              <option>Suggestions</option>
+              <option>General</option>
+              <option>Bug Reports</option>
+            </select>
+          </label>
+          <label>
+            Search
+            <input type="search" id="filter-search" placeholder="Keyword" />
+          </label>
+          <label>
+            Sort
+            <select id="filter-sort">
+              <option value="recent">Recent activity</option>
+              <option value="views">Most viewed</option>
+              <option value="replies">Most replies</option>
+            </select>
+          </label>
         </div>
+        <div id="filter-results" class="topic-table"></div>
       </section>
-    </section>
 
-    <section class="view" data-view="announcements" hidden>
-      <div class="view-head">
-        <div>
-          <p class="eyebrow">Updates</p>
-          <h2 class="page-title">Announcements</h2>
-        </div>
-        <button class="cta" id="new-ann-btn">Post announcement</button>
-      </div>
-      <div id="ann-list" class="ann-full-list"></div>
-    </section>
+      <section class="view" data-view="thread" hidden>
+        <button class="text-btn back-btn" data-route="latest">Back to latest</button>
+        <article id="thread-detail"></article>
+        <section class="replies-block">
+          <h2>Replies</h2>
+          <div id="replies-list"></div>
+          <div class="reply-form">
+            <textarea id="reply-input" placeholder="Write a reply..."></textarea>
+            <button class="primary-btn" id="reply-submit">Post Reply</button>
+          </div>
+        </section>
+      </section>
 
-    <section class="view" data-view="leaderboard" hidden>
-      <div class="view-head">
-        <div>
-          <p class="eyebrow">Reputation</p>
-          <h2 class="page-title">Leaderboard</h2>
+      <section class="view" data-view="announcements" hidden>
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">Official posts</p>
+            <h1>Announcements</h1>
+          </div>
+          <button class="primary-btn" id="new-ann-btn">New Announcement</button>
         </div>
-      </div>
-      <p class="page-desc">Ranked by accumulated reputation from upvotes on threads and replies.</p>
-      <table class="rank-table" id="leaderboard-table"></table>
-    </section>
-  </main>
+        <div id="ann-list" class="topic-table"></div>
+      </section>
+
+      <section class="view" data-view="leaderboard" hidden>
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">Community</p>
+            <h1>Leaderboard</h1>
+          </div>
+        </div>
+        <p class="page-desc">Ranked by reputation from topic and reply votes.</p>
+        <table class="rank-table" id="leaderboard-table"></table>
+      </section>
+
+      <section class="view" data-view="badges" hidden>
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">Status symbols</p>
+            <h1>Badges</h1>
+          </div>
+        </div>
+        <div id="badges-grid" class="badges-grid"></div>
+      </section>
+
+      <section class="view" data-view="about" hidden>
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">About this forum</p>
+            <h1>About KillVolute</h1>
+          </div>
+        </div>
+        <section class="about-card">
+          <h2>Built for a sharper community board.</h2>
+          <p>KillVolute is a compact dark forum template inspired by modern game communities, with local-first posting and an optional server sync endpoint for hosted deployments.</p>
+          <div class="about-stats">
+            <span><strong id="about-topic-count">0</strong> topics</span>
+            <span><strong id="about-user-count">0</strong> members</span>
+            <span><strong id="about-reply-count">0</strong> replies</span>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
 
   <footer class="footer">
-    <div class="footer-inner">
-      <span>Copyright <span id="year">2026</span> KillVolute</span>
-      <button id="reset-data" class="ghost-btn small">Reset local data</button>
-    </div>
+    <a href="./" data-route="home">Home</a>
+    <a href="latest/" data-route="latest">Latest</a>
+    <a href="about/" data-route="about">About</a>
+    <a href="badges/" data-route="badges">Badges</a>
+    <a href="filter/" data-route="filter">Filter</a>
+    <span id="storage-status">Local storage</span>
+    <span>Powered by KillVolute</span>
+    <button id="reset-data" class="text-btn">Reset local data</button>
   </footer>
 
   <div id="modal" class="modal" hidden>
@@ -150,6 +230,7 @@
     </div>
   </div>
 
+  <script src="js/config.js"></script>
   <script src="js/data.js"></script>
   <script src="js/app.js"></script>
 </body>
