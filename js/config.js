@@ -1,1 +1,0 @@
-window.KILLVOLUTE_STORAGE_URL = '';
