@@ -1,0 +1,19 @@
+{
+  "name": "killvolute",
+  "version": "1.0.0",
+  "description": "KillVolute forums — Express + SQLite backend with real auth",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.18.2"
+  }
+}
